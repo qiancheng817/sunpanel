@@ -32,13 +32,13 @@ class AppWebViewActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var titleText: TextView
 
+    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val url = intent.getStringExtra("url") ?: ""
-        val density = resources.displayMetrics.density
-        fun dp(v: Int) = (v * density).toInt()
 
         // 根布局：竖向线性布局，不用 weight（避免权重测量导致的布局塌陷）
         val root = LinearLayout(this).apply {
@@ -57,9 +57,9 @@ class AppWebViewActivity : Activity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
         }
-        val btnBack = barBtn("‹", dp)
-        val btnFwd = barBtn("›", dp)
-        val btnReload = barBtn("⟳", dp)
+        val btnBack = barBtn("‹")
+        val btnFwd = barBtn("›")
+        val btnReload = barBtn("⟳")
         titleText = TextView(this).apply {
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             setTextColor(Color.parseColor("#9A9A9A"))
@@ -67,7 +67,7 @@ class AppWebViewActivity : Activity() {
             setSingleLine(true)
             text = url
         }
-        val btnClose = barBtn("✕", dp)
+        val btnClose = barBtn("✕")
 
         bar.addView(btnBack)
         bar.addView(btnFwd)
@@ -177,7 +177,7 @@ class AppWebViewActivity : Activity() {
         }
     }
 
-    private fun barBtn(t: String, dp: (Int) -> Int): Button {
+    private fun barBtn(t: String): Button {
         return Button(this).apply {
             text = t
             setTextColor(Color.WHITE)
