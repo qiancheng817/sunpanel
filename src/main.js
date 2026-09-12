@@ -1,14 +1,14 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
 import { App } from '@capacitor/app'
-import { InAppBrowser, DefaultWebViewOptions } from '@capacitor/inappbrowser'
+import { ZoomWebView } from 'capacitor-zoom-webview'
 
 /* ============================================================
  * Sunpanel 移动端 / 安卓客户端
  *
  * 原生环境（APK）下：
  *   - 用 CapacitorHttp 发请求（走 OkHttp，绕过 CORS）
- *   - 用 InAppBrowser.openInWebView 在应用内打开卡片（WebView，Cookie 持久保存在 App 里）
+ *   - 用 ZoomWebView 在应用内打开卡片（系统 WebView + 紧凑缩放条 + 两指捏合，Cookie 持久保存在 App 里）
  *   - 长按卡片可选「用系统浏览器打开」（Chrome Custom Tabs，共享 Chrome 登录态）
  * 浏览器环境下自动降级为 fetch / location.href
  * ============================================================ */
@@ -312,21 +312,11 @@ async function openUrl(url, external) {
     return
   }
 
-  // 默认：应用内 WebView 打开，Cookie 持久保存在 App 内，登录一次长期有效
+  // 默认：应用内 WebView 打开（自带紧凑缩放条 + 两指捏合），Cookie 持久保存在 App 内，登录一次长期有效
   try {
-    await InAppBrowser.openInWebView({
-      url,
-      options: DefaultWebViewOptions || {
-        showURL: true, showToolbar: true, clearCache: false, clearSessionCache: false,
-        mediaPlaybackRequiresUserAction: true, closeButtonText: '关闭',
-        showNavigationButtons: true, leftToRight: false,
-        android: { allowZoom: true, hardwareBack: true, pauseMedia: true },
-        iOS: { allowOverScroll: true, enableViewportScale: true, allowInLineMediaPlayback: false,
-               surpressIncrementalRendering: false, viewStyle: 0, animationEffect: 2 }
-      }
-    })
+    await ZoomWebView.open({ url })
   } catch (e) {
-    // 插件异常时退回 Custom Tabs
+    // 插件异常时退回系统浏览器
     try { await Browser.open({ url, toolbarColor: '#121212' }) } catch (e2) {}
   }
 }

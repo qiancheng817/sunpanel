@@ -1,0 +1,21 @@
+{
+  "name": "capacitor-zoom-webview",
+  "version": "1.0.0",
+  "description": "In-app WebView with compact zoom controls for Sunpanel",
+  "type": "module",
+  "main": "dist/plugin.js",
+  "module": "dist/plugin.js",
+  "types": "dist/definitions.d.ts",
+  "files": [
+    "dist/",
+    "android/"
+  ],
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  },
+  "devDependencies": {
+    "@capacitor/core": "^6.0.0"
+  }
+}

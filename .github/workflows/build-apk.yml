@@ -38,6 +38,15 @@ jobs:
       - name: Sync
         run: npx cap sync android
 
+      # 保险：确保本地插件的 Kotlin 源码进入安卓工程（cap sync 通常会拷贝，这里兜底）
+      - name: Ensure local plugin sources present
+        run: |
+          set -e
+          DST=android/app/src/main/java/com/sunpanel/zoom
+          mkdir -p "$DST"
+          cp -f plugins/zoom-webview/android/src/main/java/com/sunpanel/zoom/*.kt "$DST/"
+          ls -l "$DST"
+
       - name: Replace launcher icons (预生成资源，含自适应图标)
         run: |
           set -e
@@ -64,7 +73,7 @@ jobs:
           print('minSdk lines:', [l.strip() for l in s.splitlines() if 'minSdk' in l])
           EOF
 
-      - name: Allow cleartext traffic (内网 http 地址需要)
+      - name: Allow cleartext traffic + register ZoomWebView activity
         run: |
           python3 - <<'EOF'
           p = 'android/app/src/main/AndroidManifest.xml'
@@ -72,8 +81,27 @@ jobs:
           assert '<application' in s, 'application tag not found'
           if 'usesCleartextTraffic' not in s:
               s = s.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
-              open(p, 'w', encoding='utf-8').write(s)
-          print([l for l in s.splitlines() if 'usesCleartextTraffic' in l])
+          act = ('<activity android:name="com.sunpanel.zoom.ZoomWebViewActivity" '
+                 'android:exported="false" '
+                 'android:theme="@android:style/Theme.DeviceDefault.NoActionBar" '
+                 'android:configChanges="orientation|screenSize|keyboardHidden" />')
+          if 'ZoomWebViewActivity' not in s:
+              assert '</application>' in s, 'application close tag not found'
+              s = s.replace('</application>', '    ' + act + '\n    </application>', 1)
+          open(p, 'w', encoding='utf-8').write(s)
+          print([l.strip() for l in s.splitlines() if ('usesCleartextTraffic' in l) or ('ZoomWebViewActivity' in l)])
+          EOF
+
+      - name: Bump version to 1.1.0 (应用内 WebView 缩放)
+        run: |
+          python3 - <<'EOF'
+          import re
+          p = 'android/app/build.gradle'
+          s = open(p, encoding='utf-8').read()
+          s = re.sub(r'versionName\s+"[^"]*"', 'versionName "1.1.0"', s)
+          s = re.sub(r'versionCode\s+\d+', 'versionCode 2', s)
+          open(p, 'w', encoding='utf-8').write(s)
+          print([l.strip() for l in s.splitlines() if 'versionName' in l or 'versionCode' in l])
           EOF
 
       - name: Gradle memory settings
@@ -101,11 +129,15 @@ jobs:
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.0' }}
-          name: Sunpanel 安卓客户端 v1.0.0
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.1.0' }}
+          name: Sunpanel 安卓客户端 v1.1.0
           body: |
             自动构建产物，Sunpanel 移动端 APK（debug 签名，自用未上架）。
 
             使用：安装后打开 → 填面板地址（外网 https 域名 / 内网 http 地址）+ 账号密码 → 登录即可。
             点击卡片在应用内 WebView 打开各 Docker 服务；长按卡片可切换内外网地址或用系统浏览器打开。
+
+            v1.1.0 更新：
+            - 应用内打开各 Docker 服务时支持网页缩放：两指捏合放大缩小，右下角提供紧凑的 +/- 按钮（半透明、低调）。
+            - 强制放开页面 user-scalable 限制，部分原本禁止缩放的后台也能放大查看。
           files: out/sunpanel-mobile.apk
