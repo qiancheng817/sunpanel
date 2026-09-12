@@ -1,14 +1,14 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
 import { App } from '@capacitor/app'
-import { ZoomWebView } from 'capacitor-zoom-webview'
+import { InAppBrowser } from '@capacitor/inappbrowser'
 
 /* ============================================================
  * Sunpanel 移动端 / 安卓客户端
  *
  * 原生环境（APK）下：
  *   - 用 CapacitorHttp 发请求（走 OkHttp，绕过 CORS）
- *   - 用 ZoomWebView 在应用内打开卡片（系统 WebView + 紧凑缩放条 + 两指捏合，Cookie 持久保存在 App 里）
+ *   - 用 InAppBrowser.openInWebView 在应用内打开卡片（WebView，支持两指捏合缩放，Cookie 持久保存在 App 里）
  *   - 长按卡片可选「用系统浏览器打开」（Chrome Custom Tabs，共享 Chrome 登录态）
  * 浏览器环境下自动降级为 fetch / location.href
  * ============================================================ */

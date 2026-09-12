@@ -120,15 +120,20 @@ jobs:
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.1.0' }}
-          name: Sunpanel 安卓客户端 v1.1.0
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.2.0' }}
+          name: Sunpanel 安卓客户端 v1.2.0
           body: |
             自动构建产物，Sunpanel 移动端 APK（debug 签名，自用未上架）。
 
             使用：安装后打开 → 填面板地址（外网 https 域名 / 内网 http 地址）+ 账号密码 → 登录即可。
             点击卡片在应用内 WebView 打开各 Docker 服务；长按卡片可切换内外网地址或用系统浏览器打开。
 
-            v1.1.0 更新：
-            - 应用内打开各 Docker 服务时支持网页缩放：两指捏合放大缩小，右下角提供紧凑的 +/- 按钮（半透明、低调）。
-            - 强制放开页面 user-scalable 限制，部分原本禁止缩放的后台也能放大查看。
+            v1.2.0 更新：
+            - 应用内打开各 Docker 服务时支持两指捏合放大缩小网页。
+            - 回退 v1.1.0 的自定义缩放界面（布局异常），恢复稳定的应用内 WebView。
+
+            v1.0.x 功能保留：
+            - 应用内打开（Cookie 持久化，登录一次长期有效）
+            - 内外网地址自动切换（回前台自动重新探测）
+            - 主面板记住密码、各服务密码保险箱、隐藏「导航」分组标题
           files: out/sunpanel-mobile.apk
