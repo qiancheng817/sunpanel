@@ -1,6 +1,6 @@
 # Sunpanel
 
-Sun-Panel（https://github.com/hslr-s/sun-panel）的轻量安卓客户端。打开后填入面板地址 + 账号密码，即可浏览导航卡片，点击后在**应用内 WebView** 打开你的各个 Docker 服务。
+Sun-Panel轻量安卓客户端。打开后填入面板地址 + 账号密码，即可浏览导航卡片，点击后在**应用内 WebView** 打开你的各个 Docker 服务。
 
 > 这不是官方客户端。项目为个人自用性质，遵循上游 MIT 协议。
 
