@@ -54,11 +54,14 @@ jobs:
       - name: Bump minSdkVersion to 26 (inappbrowser 插件要求)
         run: |
           python3 - <<'EOF'
+          import re
           p = 'android/variables.gradle'
           s = open(p, encoding='utf-8').read()
-          s = s.replace('minSdkVersion = 23', 'minSdkVersion = 26')
+          assert 'minSdkVersion' in s, 'minSdkVersion not found in ' + p
+          # 不管当前生成的是 22 还是 23，统一设为 26（osinappbrowser 库要求 >= 26）
+          s = re.sub(r'minSdkVersion\s*=\s*\d+', 'minSdkVersion = 26', s)
           open(p, 'w', encoding='utf-8').write(s)
-          print([l.strip() for l in s.splitlines() if 'minSdk' in l])
+          print('minSdk lines:', [l.strip() for l in s.splitlines() if 'minSdk' in l])
           EOF
 
       - name: Allow cleartext traffic (内网 http 地址需要)
@@ -99,9 +102,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.0' }}
-          name: Sun-Panel 安卓客户端 v1.0.0
+          name: Sunpanel 安卓客户端 v1.0.0
           body: |
-            自动构建产物，Sun-Panel 移动端 APK（debug 签名，自用未上架）。
+            自动构建产物，Sunpanel 移动端 APK（debug 签名，自用未上架）。
 
             使用：安装后打开 → 填面板地址（外网 https 域名 / 内网 http 地址）+ 账号密码 → 登录即可。
+            点击卡片在应用内 WebView 打开各 Docker 服务；长按卡片可切换内外网地址或用系统浏览器打开。
           files: out/sunpanel-mobile.apk
