@@ -38,15 +38,6 @@ jobs:
       - name: Sync
         run: npx cap sync android
 
-      # 保险：确保本地插件的 Kotlin 源码进入安卓工程（cap sync 通常会拷贝，这里兜底）
-      - name: Ensure local plugin sources present
-        run: |
-          set -e
-          DST=android/app/src/main/java/com/sunpanel/zoom
-          mkdir -p "$DST"
-          cp -f plugins/zoom-webview/android/src/main/java/com/sunpanel/zoom/*.kt "$DST/"
-          ls -l "$DST"
-
       - name: Replace launcher icons (预生成资源，含自适应图标)
         run: |
           set -e
