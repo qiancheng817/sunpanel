@@ -351,6 +351,7 @@ function render() {
   } else {
     app.innerHTML = homeTpl()
     bindHome()
+    hydrateIcons(app)
   }
 }
 
@@ -398,6 +399,59 @@ function bindLogin() {
   }
 }
 
+/* ---------------- 图标加载 ----------------
+ * 内网时图标常因三种原因不显示：
+ *  1) 相对路径拼的是当前 base（内网 http），主 WebView(https://localhost) 对 http 图片可能拦截；
+ *  2) 图标存的是外网域名绝对地址，内网回环（hairpin NAT）不通；
+ *  3) 图标接口需要 token，<img> 无法带请求头。
+ * 解决：原生环境下图标统一改用 CapacitorHttp 拉取（带 token、走原生网络栈）转 base64 显示；
+ * 并在內网模式下把指向外网域名的图标地址改写为内网 base。 */
+const iconCache = new Map()
+async function loadIconData(url) {
+  if (iconCache.has(url)) return iconCache.get(url)
+  let out = ''
+  try {
+    const headers = {}
+    if (state.token) {
+      headers['token'] = state.token
+      headers['Authorization'] = 'Bearer ' + state.token
+    }
+    const r = await CapacitorHttp.get({
+      url, responseType: 'array-buffer', headers,
+      connectTimeout: 8000, readTimeout: 8000
+    })
+    let ct = ''
+    const hs = r.headers || {}
+    for (const k in hs) { if (k.toLowerCase() === 'content-type') ct = String(hs[k] || '') }
+    if (r.status === 200 && r.data) {
+      out = 'data:' + (ct || 'image/png') + ';base64,' + r.data
+    }
+  } catch (e) { /* 拉取失败保持空，走首字母兜底 */ }
+  iconCache.set(url, out)
+  return out
+}
+
+function hydrateIcons(scope) {
+  if (!isNative) return
+  const imgs = (scope || document).querySelectorAll('img[data-rs]:not([src])')
+  imgs.forEach(async (img) => {
+    const u = img.getAttribute('data-rs')
+    const d = await loadIconData(u)
+    if (d) img.src = d
+    else img.removeAttribute('data-rs')
+  })
+}
+
+// 内网时把「外网 base 开头」的绝对图标地址改写为内网 base（避免 hairpin NAT 不通）
+function iconSrcFix(u) {
+  if (!u) return ''
+  u = absUrl(u)
+  if (useLan() && state.activeBase && state.base && u.indexOf(state.base) === 0) {
+    return state.activeBase + u.slice(state.base.length)
+  }
+  return u
+}
+
 function iconHtml(item) {
   const ic = item.icon
   const first = esc((item.title || '?').charAt(0))
@@ -409,13 +463,21 @@ function iconHtml(item) {
     return '<div class="thumb" style="' + bg + '">' + esc(ic.text || (item.title || '?').charAt(0)) + '</div>'
   }
   if (ic.itemType === 2) {
-    const src = absUrl(ic.src)
+    const src = iconSrcFix(ic.src)
+    if (isNative) {
+      return '<div class="thumb" style="' + bg + '"><span class="tfb">' + first + '</span>' +
+             '<img data-rs="' + esc(src) + '" alt="" onerror="this.removeAttribute(\'src\')"></div>'
+    }
     return '<div class="thumb" style="' + bg + '"><img src="' + esc(src) + '" alt="" onerror="this.remove()"></div>'
   }
   if (ic.itemType === 3) {
     const n = (ic.text || '').split(':')
     if (n.length === 2) {
       const url = 'https://api.iconify.design/' + n[0] + '/' + n[1] + '.svg?color=white'
+      if (isNative) {
+        return '<div class="thumb iconify" style="' + bg + '"><span class="tfb">' + first + '</span>' +
+               '<img data-rs="' + esc(url) + '" alt="" onerror="this.removeAttribute(\'src\')"></div>'
+      }
       return '<div class="thumb iconify" style="' + bg + '"><img src="' + esc(url) + '" alt="" onerror="this.remove()"></div>'
     }
   }
@@ -487,6 +549,7 @@ function bindHome() {
       const tmp = document.createElement('div')
       tmp.innerHTML = homeTpl()
       c.innerHTML = tmp.querySelector('#content').innerHTML
+      hydrateIcons(c)
     })
   }
 
