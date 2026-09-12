@@ -431,15 +431,24 @@ async function loadIconData(url) {
   return out
 }
 
-function hydrateIcons(scope) {
-  if (!isNative) return
-  const imgs = (scope || document).querySelectorAll('img[data-rs]:not([src])')
-  imgs.forEach(async (img) => {
-    const u = img.getAttribute('data-rs')
+// 图标兜底：浏览器原生 <img src> 加载失败时（混合内容 / 跨域 / 内网地址不可达 / 需 token 头），
+// 改用 CapacitorHttp（原生网络栈、带登录 token）拉取二进制转 base64 回填；仍失败则隐藏，保留首字母兜底。
+async function iconFallback(img) {
+  if (!img || img.dataset.tried) { if (img) img.style.display = 'none'; return }
+  const u = img.getAttribute('data-rs')
+  if (!u) { img.style.display = 'none'; return }
+  img.dataset.tried = '1'
+  try {
     const d = await loadIconData(u)
-    if (d) img.src = d
-    else img.removeAttribute('data-rs')
-  })
+    if (d) img.src = d; else img.style.display = 'none'
+  } catch (e) { img.style.display = 'none' }
+}
+window.__iconFallback = iconFallback
+
+function hydrateIcons(scope) {
+  // 首选浏览器原生 <img src>；仅当图片已确认加载失败（complete && naturalWidth===0）才用 CapacitorHttp 兜底
+  const imgs = (scope || document).querySelectorAll('img[data-rs]')
+  imgs.forEach((img) => { if (img.complete && img.naturalWidth === 0) iconFallback(img) })
 }
 
 // 内网时把「外网 base 开头」的绝对图标地址改写为内网 base（避免 hairpin NAT 不通）
@@ -464,21 +473,18 @@ function iconHtml(item) {
   }
   if (ic.itemType === 2) {
     const src = iconSrcFix(ic.src)
-    if (isNative) {
-      return '<div class="thumb" style="' + bg + '"><span class="tfb">' + first + '</span>' +
-             '<img data-rs="' + esc(src) + '" alt="" onerror="this.removeAttribute(\'src\')"></div>'
-    }
-    return '<div class="thumb" style="' + bg + '"><img src="' + esc(src) + '" alt="" onerror="this.remove()"></div>'
+    // 首选浏览器原生加载（外网最直接可靠）；失败再走 CapacitorHttp 兜底；最终首字母兜底
+    return '<div class="thumb" style="' + bg + '"><span class="tfb">' + first + '</span>' +
+           '<img data-rs="' + esc(src) + '" src="' + esc(src) + '" alt="" ' +
+           'onerror="window.__iconFallback && window.__iconFallback(this)"></div>'
   }
   if (ic.itemType === 3) {
     const n = (ic.text || '').split(':')
     if (n.length === 2) {
       const url = 'https://api.iconify.design/' + n[0] + '/' + n[1] + '.svg?color=white'
-      if (isNative) {
-        return '<div class="thumb iconify" style="' + bg + '"><span class="tfb">' + first + '</span>' +
-               '<img data-rs="' + esc(url) + '" alt="" onerror="this.removeAttribute(\'src\')"></div>'
-      }
-      return '<div class="thumb iconify" style="' + bg + '"><img src="' + esc(url) + '" alt="" onerror="this.remove()"></div>'
+      return '<div class="thumb iconify" style="' + bg + '"><span class="tfb">' + first + '</span>' +
+             '<img data-rs="' + esc(url) + '" src="' + esc(url) + '" alt="" ' +
+             'onerror="window.__iconFallback && window.__iconFallback(this)"></div>'
     }
   }
   return '<div class="thumb" style="' + bg + '">' + first + '</div>'
