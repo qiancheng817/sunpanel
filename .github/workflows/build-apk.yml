@@ -38,21 +38,17 @@ jobs:
       - name: Sync
         run: npx cap sync android
 
-      - name: Replace launcher icon
+      - name: Replace launcher icons (预生成的 PNG，不依赖 ImageMagick)
         run: |
           set -e
-          if command -v convert >/dev/null 2>&1; then CONV=convert
-          elif command -v magick >/dev/null 2>&1; then CONV=magick
-          else echo "no imagemagick, keep default icon"; exit 0; fi
-          rm -rf android/app/src/main/res/mipmap-anydpi-v26
-          for pair in "48 mdpi" "72 hdpi" "96 xhdpi" "144 xxhdpi" "192 xxxhdpi"; do
-            set -- $pair
-            size=$1; dir=$2
-            mkdir -p android/app/src/main/res/mipmap-$dir
-            $CONV assets/icon-512.png -resize ${size}x${size} android/app/src/main/res/mipmap-$dir/ic_launcher.png
-            $CONV assets/icon-512.png -resize ${size}x${size} android/app/src/main/res/mipmap-$dir/ic_launcher_round.png
+          rm -rf android/app/src/main/res/mipmap-*
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            mkdir -p android/app/src/main/res/mipmap-$d
+            cp assets/mipmap-$d/ic_launcher.png android/app/src/main/res/mipmap-$d/ic_launcher.png
+            cp assets/mipmap-$d/ic_launcher.png android/app/src/main/res/mipmap-$d/ic_launcher_round.png
           done
-          echo "icon replaced"
+          ls android/app/src/main/res/ | tr '\n' ' '; echo
+          test -f android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png && echo "icon ok"
 
       - name: Allow cleartext traffic (内网 http 地址需要)
         run: |
