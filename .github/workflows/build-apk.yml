@@ -64,7 +64,7 @@ jobs:
           print('minSdk lines:', [l.strip() for l in s.splitlines() if 'minSdk' in l])
           EOF
 
-      - name: Allow cleartext traffic + register AppWebView activity
+      - name: Allow cleartext traffic (内网 http 地址需要)
         run: |
           python3 - <<'EOF'
           p = 'android/app/src/main/AndroidManifest.xml'
@@ -72,15 +72,8 @@ jobs:
           assert '<application' in s, 'application tag not found'
           if 'usesCleartextTraffic' not in s:
               s = s.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
-          act = ('<activity android:name="com.sunpanel.appwebview.AppWebViewActivity" '
-                 'android:exported="false" '
-                 'android:theme="@android:style/Theme.DeviceDefault.NoActionBar" '
-                 'android:configChanges="orientation|screenSize|keyboardHidden" />')
-          if 'AppWebViewActivity' not in s:
-              assert '</application>' in s, 'application close tag not found'
-              s = s.replace('</application>', '    ' + act + '\n    </application>', 1)
-          open(p, 'w', encoding='utf-8').write(s)
-          print([l.strip() for l in s.splitlines() if ('usesCleartextTraffic' in l) or ('AppWebViewActivity' in l)])
+              open(p, 'w', encoding='utf-8').write(s)
+          print([l.strip() for l in s.splitlines() if 'usesCleartextTraffic' in l])
           EOF
 
       - name: Bump version to 1.3.0 (应用内 WebView + 捏合缩放)
