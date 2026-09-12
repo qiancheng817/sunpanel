@@ -46,15 +46,15 @@ class AppWebViewActivity : Activity() {
             setBackgroundColor(Color.parseColor("#101010"))
         }
 
-        // ---- 顶部工具条（固定包裹高度）----
+        // ---- 底部工具条（窄条，固定高度）----
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(Color.parseColor("#181818"))
-            setPadding(dp(4), dp(6), dp(4), dp(6))
+            setBackgroundColor(Color.parseColor("#141414"))
+            setPadding(dp(2), dp(2), dp(2), dp(2))
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                dp(34)
             )
         }
         val btnBack = barBtn("‹")
@@ -62,8 +62,8 @@ class AppWebViewActivity : Activity() {
         val btnReload = barBtn("⟳")
         titleText = TextView(this).apply {
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-            setTextColor(Color.parseColor("#9A9A9A"))
-            textSize = 12f
+            setTextColor(Color.parseColor("#8A8A8A"))
+            textSize = 10f
             setSingleLine(true)
             text = url
         }
@@ -118,20 +118,17 @@ class AppWebViewActivity : Activity() {
                     return handleUrl(request?.url?.toString())
                 }
 
+                override fun onPageStarted(view: WebView?, u: String?, favicon: android.graphics.Bitmap?) {
+                    super.onPageStarted(view, u, favicon)
+                    // 尽早注入：允许缩小到 100% 以下（minimum-scale=0.3），并持续强制防止页面改回
+                    view?.evaluateJavascript(FORCE_VIEWPORT_JS, null)
+                }
+
                 override fun onPageFinished(view: WebView?, u: String?) {
                     super.onPageFinished(view, u)
                     if (!u.isNullOrEmpty()) titleText.text = u
-                    // 强制放开缩放限制：改写/注入 viewport
-                    view?.evaluateJavascript(
-                        "(function(){try{" +
-                            "var c='width=device-width, initial-scale=1.0, maximum-scale=10.0, minimum-scale=0.1, user-scalable=yes';" +
-                            "var m=document.querySelector('meta[name=viewport]');" +
-                            "if(m){m.setAttribute('content',c);}" +
-                            "else{var n=document.createElement('meta');n.name='viewport';n.content=c;" +
-                            "(document.head||document.documentElement).appendChild(n);}" +
-                            "}catch(e){}})();",
-                        null
-                    )
+                    // 再次注入兜底（SPA 首屏后仍可能重写 viewport）
+                    view?.evaluateJavascript(FORCE_VIEWPORT_JS, null)
                 }
 
                 // 内网自签名证书放行（自家服务，避免 https 打不开）
@@ -153,8 +150,8 @@ class AppWebViewActivity : Activity() {
             }
         }
 
-        root.addView(bar)
         root.addView(webView)
+        root.addView(bar)
         setContentView(root)
 
         btnBack.setOnClickListener { if (webView.canGoBack()) webView.goBack() }
@@ -182,10 +179,11 @@ class AppWebViewActivity : Activity() {
             text = t
             setTextColor(Color.WHITE)
             setBackgroundColor(Color.TRANSPARENT)
-            textSize = 20f
-            minWidth = dp(42)
-            minHeight = dp(40)
+            textSize = 14f
+            minWidth = dp(34)
+            minHeight = dp(28)
             setPadding(0, 0, 0, 0)
+            includeFontPadding = false
         }
     }
 
@@ -196,5 +194,33 @@ class AppWebViewActivity : Activity() {
         } else {
             super.onBackPressed()
         }
+    }
+
+    companion object {
+        /** 强制放开缩放范围：可缩小到 30%、放大到 10 倍；并监视页面自身对 viewport 的改写，持续恢复 */
+        private val FORCE_VIEWPORT_JS = """
+            (function(){
+              try{
+                var C='width=device-width, initial-scale=1.0, minimum-scale=0.3, maximum-scale=10.0, user-scalable=yes';
+                function apply(){
+                  var m=document.querySelector('meta[name=viewport]');
+                  if(m){ if(m.getAttribute('content')!==C) m.setAttribute('content',C); }
+                  else{
+                    var n=document.createElement('meta');
+                    n.name='viewport'; n.content=C;
+                    (document.head||document.documentElement).appendChild(n);
+                  }
+                }
+                apply();
+                var h=document.head||document.documentElement;
+                if(h && !window.__spVpObs){
+                  window.__spVpObs=true;
+                  var obs=new MutationObserver(function(){ apply(); });
+                  obs.observe(h,{subtree:true,childList:true,attributes:true,attributeFilter:['content','name']});
+                  var t=0; var iv=setInterval(function(){ apply(); if(++t>15) clearInterval(iv); },200);
+                }
+              }catch(e){}
+            })();
+        """.trimIndent().replace("\n", " ")
     }
 }

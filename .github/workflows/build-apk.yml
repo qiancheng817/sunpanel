@@ -113,19 +113,22 @@ jobs:
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.3.0' }}
-          name: Sunpanel 安卓客户端 v1.3.0
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.3.1' }}
+          name: Sunpanel 安卓客户端 v1.3.1
           body: |
             自动构建产物，Sunpanel 移动端 APK（debug 签名，自用未上架）。
 
             使用：安装后打开 → 填面板地址（外网 https 域名 / 内网 http 地址）+ 账号密码 → 登录即可。
             点击卡片在应用内打开各 Docker 服务；长按卡片可切换内外网地址或用系统浏览器打开。
 
+            v1.3.1 更新：
+            - 缩小不再受限于 100%：双指捏合最小可缩到约 30%（页面自身限制缩放时也会强制放开）。
+            - 导航工具条移到屏幕底部并做窄（34dp），视觉更轻。
+
             v1.3.0 更新：
-            - 修复 v1.2.0「点卡片跳到外部 Chrome 浏览器」的问题（旧代码残留导致应用内打开失败后误走外部兜底）。
-            - 改为自研原生应用内 WebView：完全在 App 内打开，不再依赖第三方插件，也不会退回外部浏览器。
-            - 支持双指捏合放大缩小；页面自身禁止缩放时也会强制放开。
-            - 顶部工具条仅保留 返回/前进/刷新/关闭，无任何缩放按钮。
+            - 修复 v1.2.0「点卡片跳到外部 Chrome 浏览器」的问题。
+            - 自研原生应用内 WebView：完全在 App 内打开，不依赖第三方插件，无外部兜底。
+            - 支持双指捏合放大缩小；工具条仅 返回/前进/刷新/关闭。
 
             保留功能：
             - 内外网地址自动切换（回前台自动重新探测）
