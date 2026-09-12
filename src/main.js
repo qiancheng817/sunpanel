@@ -63,6 +63,32 @@ function absUrl(u, base) {
   return u
 }
 
+/* ---------------- 密码保险箱（手动保存各 docker 服务账号密码） ----------------
+ * 当前 InAppBrowser 插件(1.0.3) 不支持向 WebView 注入 JS，无法「自动填充」；
+ * 这里提供「保存 + 快速复制密码」，配合 WebView 的 Cookie 持久化
+ * （openInWebView 已 clearCache:false），让大多数服务登录一次后长期免登录。 */
+function getVault() {
+  try { return JSON.parse(localStorage.getItem(K.PWVAULT) || '{}') || {} } catch (e) { return {} }
+}
+function setVault(v) { localStorage.setItem(K.PWVAULT, JSON.stringify(v || {})) }
+function showPwForm(host) {
+  const v = getVault()[host] || { u: '', p: '' }
+  const html = '<div class="sheet-title">保存登录信息 · ' + esc(host) + '</div>' +
+    '<div class="field"><label>账号</label><input id="pwu" type="text" autocomplete="username" value="' + esc(v.u) + '"></div>' +
+    '<div class="field"><label>密码</label><input id="pwp" type="password" value="' + esc(v.p) + '"></div>' +
+    '<div class="sheet-item" data-a="save">保存</div>' +
+    '<div class="sheet-sep"></div><div class="sheet-item" data-a="cancel">取消</div>'
+  sheet(html, (a) => {
+    if (a !== 'save') return
+    const u = document.getElementById('pwu').value
+    const p = document.getElementById('pwp').value
+    const all = getVault()
+    all[host] = { u, p }
+    setVault(all)
+    toast('已保存 · ' + host)
+  })
+}
+
 /* ---------------- HTTP ---------------- */
 async function httpPost(url, data) {
   const headers = { 'Content-Type': 'application/json' }
@@ -112,6 +138,7 @@ async function doLogin() {
   const lanRaw = document.getElementById('baseLan').value.trim()
   const username = document.getElementById('u').value.trim()
   const password = document.getElementById('p').value
+  const remember = document.getElementById('remember') ? document.getElementById('remember').checked : false
   const hint = document.getElementById('hint')
 
   const base = normalizeBase(baseRaw)
@@ -596,11 +623,18 @@ function showMore() {
 function showItemSheet(item) {
   const url = item.url ? absUrl(item.url) : ''
   const lanUrl = item.lanUrl ? absUrl(item.lanUrl) : ''
+  let host = ''
+  try { host = new URL(url || lanUrl || '').hostname } catch (e) {}
+  const vault = getVault()
   let html = '<div class="sheet-title">' + esc(item.title || '') + '</div>'
   html += '<div class="sheet-item" data-a="open">应用内打开（' + (useLan() ? '内网' : '外网') + '）</div>'
   if (lanUrl && lanUrl !== url) html += '<div class="sheet-item" data-a="openLan">应用内打开内网地址</div>'
   if (url && lanUrl && url !== lanUrl) html += '<div class="sheet-item" data-a="openWan">应用内打开外网地址</div>'
   if (url || lanUrl) html += '<div class="sheet-item" data-a="openExt">用系统浏览器打开</div>'
+  if (host) {
+    if (vault[host]) html += '<div class="sheet-item" data-a="copyPw">复制该服务密码</div>'
+    html += '<div class="sheet-item" data-a="savePw">保存该服务账号密码</div>'
+  }
   html += '<div class="sheet-item" data-a="copy">复制地址</div>'
   html += '<div class="sheet-sep"></div><div class="sheet-item" data-a="cancel">取消</div>'
 
@@ -610,6 +644,8 @@ function showItemSheet(item) {
     else if (a === 'openWan') await openUrl(url)
     else if (a === 'openExt') await openUrl(useLan() && lanUrl ? lanUrl : url, true)
     else if (a === 'copy') copyText(useLan() && lanUrl ? lanUrl : url)
+    else if (a === 'copyPw') { const v = getVault()[host]; if (v && v.p) copyText(v.p) }
+    else if (a === 'savePw') showPwForm(host)
   })
 }
 

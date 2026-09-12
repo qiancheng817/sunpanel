@@ -131,6 +131,11 @@ html, body {
   text-align: center; line-height: 1.6; min-height: 18px; white-space: pre-wrap;
 }
 .hint.err { color: var(--danger); }
+.remember {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--fg-dim); margin: -4px 0 14px; user-select: none;
+}
+.remember input { width: auto; accent-color: var(--accent); }
 
 /* ---------- misc ---------- */
 .center { text-align: center; color: var(--fg-dim); font-size: 13px; padding: 46px 12px; line-height: 1.7; }
