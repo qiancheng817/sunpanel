@@ -1,0 +1,21 @@
+{
+  "name": "sunpanel-mobile",
+  "version": "1.0.0",
+  "description": "Sun-Panel 安卓客户端",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "sync": "npm run build && cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/browser": "^6.0.2",
+    "@capacitor/core": "^6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "vite": "^5.4.11"
+  }
+}

@@ -1,0 +1,94 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install JS deps
+        run: npm install
+
+      - name: Build web assets
+        run: npm run build
+
+      - name: Create Android platform
+        run: npx cap add android
+
+      - name: Sync
+        run: npx cap sync android
+
+      - name: Replace launcher icon
+        run: |
+          set -e
+          if command -v convert >/dev/null 2>&1; then CONV=convert
+          elif command -v magick >/dev/null 2>&1; then CONV=magick
+          else echo "no imagemagick, keep default icon"; exit 0; fi
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26
+          for pair in "48 mdpi" "72 hdpi" "96 xhdpi" "144 xxhdpi" "192 xxxhdpi"; do
+            set -- $pair
+            size=$1; dir=$2
+            mkdir -p android/app/src/main/res/mipmap-$dir
+            $CONV assets/icon-512.png -resize ${size}x${size} android/app/src/main/res/mipmap-$dir/ic_launcher.png
+            $CONV assets/icon-512.png -resize ${size}x${size} android/app/src/main/res/mipmap-$dir/ic_launcher_round.png
+          done
+          echo "icon replaced"
+
+      - name: Allow cleartext traffic (内网 http 地址需要)
+        run: |
+          sed -i 's|<application |<application android:usesCleartextTraffic="true" |' \
+            android/app/src/main/AndroidManifest.xml
+          grep -n 'usesCleartextTraffic' android/app/src/main/AndroidManifest.xml
+
+      - name: Gradle memory settings
+        run: |
+          echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=768m" >> android/gradle.properties
+          echo "org.gradle.daemon=false" >> android/gradle.properties
+
+      - name: Build debug APK
+        run: |
+          chmod +x android/gradlew
+          cd android && ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk out/sunpanel-mobile.apk
+          ls -lh out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sunpanel-mobile-apk
+          path: out/sunpanel-mobile.apk
+
+      - name: Release
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.0' }}
+          name: Sun-Panel 安卓客户端 v1.0.0
+          body: |
+            自动构建产物，Sun-Panel 移动端 APK（debug 签名，自用未上架）。
+
+            使用：安装后打开 → 填面板地址（外网 https 域名 / 内网 http 地址）+ 账号密码 → 登录即可。
+          files: out/sunpanel-mobile.apk
