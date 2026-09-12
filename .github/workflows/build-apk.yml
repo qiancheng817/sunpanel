@@ -56,9 +56,15 @@ jobs:
 
       - name: Allow cleartext traffic (内网 http 地址需要)
         run: |
-          sed -i 's|<application |<application android:usesCleartextTraffic="true" |' \
-            android/app/src/main/AndroidManifest.xml
-          grep -n 'usesCleartextTraffic' android/app/src/main/AndroidManifest.xml
+          python3 - <<'EOF'
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p, encoding='utf-8').read()
+          assert '<application' in s, 'application tag not found'
+          if 'usesCleartextTraffic' not in s:
+              s = s.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
+              open(p, 'w', encoding='utf-8').write(s)
+          print([l for l in s.splitlines() if 'usesCleartextTraffic' in l])
+          EOF
 
       - name: Gradle memory settings
         run: |
