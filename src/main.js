@@ -1,14 +1,15 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
 import { App } from '@capacitor/app'
-import { InAppBrowser } from '@capacitor/inappbrowser'
+import { AppWebView } from 'capacitor-appwebview'
 
 /* ============================================================
  * Sunpanel 移动端 / 安卓客户端
  *
  * 原生环境（APK）下：
  *   - 用 CapacitorHttp 发请求（走 OkHttp，绕过 CORS）
- *   - 用 InAppBrowser.openInWebView 在应用内打开卡片（WebView，支持两指捏合缩放，Cookie 持久保存在 App 里）
+ *   - 用自研 AppWebView 在应用内打开卡片（原生 Activity + WebView，绝不跳外部浏览器；
+ *     支持双指捏合缩放，页面禁止缩放时也会强制放开；Cookie 保存在 App 内）
  *   - 长按卡片可选「用系统浏览器打开」（Chrome Custom Tabs，共享 Chrome 登录态）
  * 浏览器环境下自动降级为 fetch / location.href
  * ============================================================ */
@@ -64,9 +65,9 @@ function absUrl(u, base) {
 }
 
 /* ---------------- 密码保险箱（手动保存各 docker 服务账号密码） ----------------
- * 当前 InAppBrowser 插件(1.0.3) 不支持向 WebView 注入 JS，无法「自动填充」；
- * 这里提供「保存 + 快速复制密码」，配合 WebView 的 Cookie 持久化
- * （openInWebView 已 clearCache:false），让大多数服务登录一次后长期免登录。 */
+ * 自研 AppWebView 已支持注入 JS，但各站点登录表单结构各异，自动填充并不稳定；
+ * 这里仍提供「保存 + 快速复制密码」，配合 WebView 的 Cookie 持久化，
+ * 让大多数服务登录一次后长期免登录。 */
 function getVault() {
   try { return JSON.parse(localStorage.getItem(K.PWVAULT) || '{}') || {} } catch (e) { return {} }
 }
@@ -312,12 +313,12 @@ async function openUrl(url, external) {
     return
   }
 
-  // 默认：应用内 WebView 打开（自带紧凑缩放条 + 两指捏合），Cookie 持久保存在 App 内，登录一次长期有效
+  // 默认：应用内 WebView 打开（双指捏合缩放，无按钮），Cookie 保存在 App 内，登录一次长期有效
+  // 注意：绝不再退回外部浏览器——打不开就提示，避免出现「跳到 Chrome」的困惑
   try {
-    await ZoomWebView.open({ url })
+    await AppWebView.open({ url })
   } catch (e) {
-    // 插件异常时退回系统浏览器
-    try { await Browser.open({ url, toolbarColor: '#121212' }) } catch (e2) {}
+    toast('应用内打开失败：' + (e && e.message ? e.message : e))
   }
 }
 

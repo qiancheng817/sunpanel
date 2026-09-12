@@ -7,6 +7,9 @@ out/
 .vite/
 *.log
 
-# 本地 Capacitor 插件 capacitor-zoom-webview：这些是源码，不是构建产物，必须提交
+# 本地 Capacitor 插件：这些是源码，不是构建产物，必须提交
 !plugins/zoom-webview/dist/
 !plugins/zoom-webview/android/
+!plugins/appwebview/dist/
+!plugins/appwebview/android/
+!plugins/appwebview/android/build.gradle
