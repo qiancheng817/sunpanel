@@ -1,13 +1,16 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
+import { App } from '@capacitor/app'
+import { InAppBrowser, DefaultWebViewOptions } from '@capacitor/inappbrowser'
 
 /* ============================================================
- * Sun-Panel 移动端 / 安卓客户端
+ * Sunpanel 移动端 / 安卓客户端
  *
  * 原生环境（APK）下：
  *   - 用 CapacitorHttp 发请求（走 OkHttp，绕过 CORS）
- *   - 用 Browser 打开卡片（Chrome Custom Tabs，与系统 Chrome 共享 Cookie）
- * 浏览器环境下自动降级为 fetch / window.open
+ *   - 用 InAppBrowser.openInWebView 在应用内打开卡片（WebView，Cookie 持久保存在 App 里）
+ *   - 长按卡片可选「用系统浏览器打开」（Chrome Custom Tabs，共享 Chrome 登录态）
+ * 浏览器环境下自动降级为 fetch / location.href
  * ============================================================ */
 
 const isNative = Capacitor.isNativePlatform()
@@ -112,7 +115,7 @@ async function doLogin() {
   const hint = document.getElementById('hint')
 
   const base = normalizeBase(baseRaw)
-  if (!base) { showHint('请填写 Sun-Panel 地址', true); return }
+  if (!base) { showHint('请填写 Sunpanel 面板地址', true); return }
   if (!username || !password) { showHint('请填写账号和密码', true); return }
 
   const btn = document.getElementById('loginBtn')
@@ -267,13 +270,37 @@ function applyWallpaper() {
 }
 
 /* ---------------- 打开链接 ---------------- */
-async function openUrl(url) {
+async function openUrl(url, external) {
   if (!url) { toast('该卡片没有配置地址'); return }
   localStorage.setItem('SPM_SCROLL', String(window.scrollY || 0))
-  if (isNative) {
-    await Browser.open({ url, toolbarColor: '#121212' })
-  } else {
-    window.location.href = url
+  if (!isNative) { window.location.href = url; return }
+
+  if (external) {
+    // 系统浏览器（Chrome Custom Tabs，共享 Chrome 的 Cookie）
+    try {
+      await Browser.open({ url, toolbarColor: '#121212' })
+    } catch (e) {
+      window.open(url, '_blank')
+    }
+    return
+  }
+
+  // 默认：应用内 WebView 打开，Cookie 持久保存在 App 内，登录一次长期有效
+  try {
+    await InAppBrowser.openInWebView({
+      url,
+      options: DefaultWebViewOptions || {
+        showURL: true, showToolbar: true, clearCache: false, clearSessionCache: false,
+        mediaPlaybackRequiresUserAction: true, closeButtonText: '关闭',
+        showNavigationButtons: true, leftToRight: false,
+        android: { allowZoom: true, hardwareBack: true, pauseMedia: true },
+        iOS: { allowOverScroll: true, enableViewportScale: true, allowInLineMediaPlayback: false,
+               surpressIncrementalRendering: false, viewStyle: 0, animationEffect: 2 }
+      }
+    })
+  } catch (e) {
+    // 插件异常时退回 Custom Tabs
+    try { await Browser.open({ url, toolbarColor: '#121212' }) } catch (e2) {}
   }
 }
 
@@ -313,7 +340,7 @@ function loginTpl() {
   const hasSaved = !!state.base
   return '' +
   '<div class="form">' +
-    '<div class="form-title">Sun-Panel</div>' +
+    '<div class="form-title">Sunpanel</div>' +
     '<div class="form-sub">连接你的导航面板</div>' +
     '<div class="field">' +
       '<label>面板地址（外网 / 域名）</label>' +
@@ -379,7 +406,7 @@ function iconHtml(item) {
 
 function homeTpl() {
   const kw = state.keyword.trim().toLowerCase()
-  const title = (state.config && state.config.logoText) || 'Sun-Panel'
+  const title = (state.config && state.config.logoText) || 'Sunpanel'
   const lan = useLan()
 
   let html = '' +
@@ -557,7 +584,7 @@ function showMore() {
     } else if (a === 'refresh') {
       await loadAll()
     } else if (a === 'web') {
-      await openUrl(state.activeBase || state.base)
+      await openUrl(state.activeBase || state.base, true)
     } else if (a === 'settings') {
       state.view = 'login'; render()
     } else if (a === 'logout') {
@@ -570,9 +597,10 @@ function showItemSheet(item) {
   const url = item.url ? absUrl(item.url) : ''
   const lanUrl = item.lanUrl ? absUrl(item.lanUrl) : ''
   let html = '<div class="sheet-title">' + esc(item.title || '') + '</div>'
-  html += '<div class="sheet-item" data-a="open">打开（' + (useLan() ? '内网' : '外网') + '）</div>'
-  if (lanUrl && lanUrl !== url) html += '<div class="sheet-item" data-a="openLan">打开内网地址</div>'
-  if (url && lanUrl && url !== lanUrl) html += '<div class="sheet-item" data-a="openWan">打开外网地址</div>'
+  html += '<div class="sheet-item" data-a="open">应用内打开（' + (useLan() ? '内网' : '外网') + '）</div>'
+  if (lanUrl && lanUrl !== url) html += '<div class="sheet-item" data-a="openLan">应用内打开内网地址</div>'
+  if (url && lanUrl && url !== lanUrl) html += '<div class="sheet-item" data-a="openWan">应用内打开外网地址</div>'
+  if (url || lanUrl) html += '<div class="sheet-item" data-a="openExt">用系统浏览器打开</div>'
   html += '<div class="sheet-item" data-a="copy">复制地址</div>'
   html += '<div class="sheet-sep"></div><div class="sheet-item" data-a="cancel">取消</div>'
 
@@ -580,6 +608,7 @@ function showItemSheet(item) {
     if (a === 'open') await openItem(item)
     else if (a === 'openLan') await openUrl(lanUrl)
     else if (a === 'openWan') await openUrl(url)
+    else if (a === 'openExt') await openUrl(useLan() && lanUrl ? lanUrl : url, true)
     else if (a === 'copy') copyText(useLan() && lanUrl ? lanUrl : url)
   })
 }
@@ -626,6 +655,23 @@ function toast(msg) {
 /* ---------------- 启动 ---------------- */
 ;(function boot() {
   document.addEventListener('backbutton', () => { /* 交给系统处理 */ })
+
+  // 回到前台时重新探测内外网：从外面回家连上 WiFi 后，不用手动刷新
+  if (isNative && App && App.addListener) {
+    try {
+      App.addListener('appStateChange', (s) => {
+        if (s.isActive && state.view === 'home' && state.mode === 'auto' && state.baseLan) {
+          const before = state.activeBase
+          resolveBase().then(() => {
+            if (state.activeBase !== before) {
+              loadAll()
+              toast('网络环境变化，已切换到' + (useLan() ? '内网' : '外网'))
+            }
+          })
+        }
+      })
+    } catch (e) { /* 忽略 */ }
+  }
 
   if (state.token && state.base) {
     try { state.user = JSON.parse(localStorage.getItem(K.USER) || 'null') } catch (e) {}

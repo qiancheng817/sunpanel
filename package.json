@@ -10,8 +10,10 @@
     "sync": "npm run build && cap sync android"
   },
   "dependencies": {
+    "@capacitor/app": "^6.0.2",
     "@capacitor/browser": "^6.0.2",
-    "@capacitor/core": "^6.1.2"
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/inappbrowser": "1.0.3"
   },
   "devDependencies": {
     "@capacitor/android": "^6.1.2",

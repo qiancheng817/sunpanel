@@ -1,6 +1,6 @@
 {
   "appId": "com.sunpanel.mobile",
-  "appName": "Sun-Panel",
+  "appName": "Sunpanel",
   "webDir": "dist",
   "server": {
     "androidScheme": "https"

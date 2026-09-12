@@ -38,17 +38,28 @@ jobs:
       - name: Sync
         run: npx cap sync android
 
-      - name: Replace launcher icons (预生成的 PNG，不依赖 ImageMagick)
+      - name: Replace launcher icons (预生成资源，含自适应图标)
         run: |
           set -e
-          rm -rf android/app/src/main/res/mipmap-*
+          R=android/app/src/main/res
+          rm -rf $R/mipmap-*
           for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-            mkdir -p android/app/src/main/res/mipmap-$d
-            cp assets/mipmap-$d/ic_launcher.png android/app/src/main/res/mipmap-$d/ic_launcher.png
-            cp assets/mipmap-$d/ic_launcher.png android/app/src/main/res/mipmap-$d/ic_launcher_round.png
+            cp -r assets/android-res/mipmap-$d $R/
           done
-          ls android/app/src/main/res/ | tr '\n' ' '; echo
-          test -f android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png && echo "icon ok"
+          cp -r assets/android-res/mipmap-anydpi-v26 $R/
+          cp -f assets/android-res/values/ic_launcher_background.xml $R/values/
+          rm -f $R/drawable/ic_launcher_foreground.xml
+          test -f $R/mipmap-xxxhdpi/ic_launcher.png && test -f $R/mipmap-xxxhdpi/ic_launcher_foreground.png && echo "icons ok"
+
+      - name: Bump minSdkVersion to 26 (inappbrowser 插件要求)
+        run: |
+          python3 - <<'EOF'
+          p = 'android/variables.gradle'
+          s = open(p, encoding='utf-8').read()
+          s = s.replace('minSdkVersion = 23', 'minSdkVersion = 26')
+          open(p, 'w', encoding='utf-8').write(s)
+          print([l.strip() for l in s.splitlines() if 'minSdk' in l])
+          EOF
 
       - name: Allow cleartext traffic (内网 http 地址需要)
         run: |
